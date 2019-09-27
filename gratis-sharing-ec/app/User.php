@@ -44,8 +44,11 @@ class User extends Authenticatable
      * @param  string  $email, $first_name
      * @return string $validationkey
      */
-    public function generateValidationKey(string $email, string $name)
+    public static function generateValidationKey(string $email, string $name)
     {
-         return Crypt::encryptString("hallo");
+        $combination = $email . "+" . $name;
+        if ($combination) {
+            return Crypt::encryptString($combination);
+        }
     }
 }
