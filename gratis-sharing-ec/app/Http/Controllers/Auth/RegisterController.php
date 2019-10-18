@@ -7,6 +7,11 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Foundation\Auth\RegistersUsers;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Http\Request;
+use Illuminate\Auth\Access\Response;
+use Illuminate\Auth\Events\Registered;
+use App\Mail\userRegistered;
 
 
 class RegisterController extends Controller
@@ -29,7 +34,7 @@ class RegisterController extends Controller
      *
      * @var string
      */
-    protected $redirectTo = '/home';
+    // protected $redirectTo = '/home';
 
     /**
      * Create a new controller instance.
@@ -56,6 +61,18 @@ class RegisterController extends Controller
         ]);
     }
 
+    public function register(Request $request)
+    {
+        $this->validator($request->all())->validate();
+
+        event(new Registered($user = $this->create($request->all())));
+
+        // $this->guard()->login($user);
+
+        return $this->registered($request, $user)
+                        ?: redirect($this->redirectPath());
+    }
+
     /**
      * Create a new user instance after a valid registration.
      *
@@ -64,14 +81,30 @@ class RegisterController extends Controller
      */
     protected function create(array $data)
     {   
-        return User::create([
+        $user = User::create([
             'name' => $data['name'],
             'surname' => $data['surname'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
             'activate_token' => User::generateValidationKey($data['email'], $data['name']),
         ]);
+
+        Mail::to($user->email)->send(new UserRegistered($user));
+        return $user;
     }
 
+    public function activate($hash) {
 
+        $user = User::where('activate_token', $hash)->first();
+        
+        if (!$user) {
+            return response('ga weg theepot', 418);
+        }
+        
+        $user->active = 1;
+        $user->activate_token = null;
+        $user->save();
+
+        return redirect('/');
+    }
 }
